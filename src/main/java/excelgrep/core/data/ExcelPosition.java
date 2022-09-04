@@ -8,6 +8,7 @@ public class ExcelPosition {
     public static final int POSITION_NONE = -1;
 
     Path filePath;
+
     String sheetName;
     
     String excelType = null;
@@ -77,7 +78,11 @@ public class ExcelPosition {
     public String getSheetName() {
         return sheetName;
     }
-    
+
+    public Path getFilePath() {
+        return filePath;
+    }
+
     
     
 }

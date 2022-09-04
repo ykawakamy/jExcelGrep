@@ -8,6 +8,11 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.regex.Pattern;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -18,9 +23,15 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
+import excelgrep.core.ExcelGrep;
+import excelgrep.core.data.ExcelData;
+import excelgrep.core.data.ExcelGrepResult;
+import excelgrep.core.data.ExcelPosition;
 
 public class ExcelGrepGuiMain {
 
@@ -184,23 +195,25 @@ public class ExcelGrepGuiMain {
         panel_2.add(progressBar_1, gbc_progressBar_1);;
 
         registerEventHandlers();
+        
+        searchFolder.setSelectedItem("D:\\workspaces\\e2019-product\\excel-grep\\src\\test\\input\\case1");
     }
 
     private void registerEventHandlers() {
         selectFolderButton.addActionListener(this::onClick_selectFolderButton);
         searchButton.addActionListener(this::onClick_searchButton);
-        
+
     }
 
     void onClick_selectFolderButton(ActionEvent e) {
         String oldFolderPath = (String) searchFolder.getSelectedItem();
-        
+
         JFileChooser filechooser = new JFileChooser();
         filechooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         if (oldFolderPath != null) {
             filechooser.setCurrentDirectory(new File(oldFolderPath));
         }
-        
+
         int selected = filechooser.showOpenDialog(frame);
         if (selected == JFileChooser.APPROVE_OPTION) {
             File selectedFile = filechooser.getSelectedFile();
@@ -209,13 +222,68 @@ public class ExcelGrepGuiMain {
             searchFolder.setSelectedItem(newFolderPath);
         }
     }
-    
-    void onClick_searchButton(ActionEvent e){
+
+    void onClick_searchButton(ActionEvent e) {
         String targetFolderPath = (String) searchFolder.getSelectedItem();
-        String regex = (String)searchKeyword.getSelectedItem();
-        
-        searchWorker = new ExcelGrepSearchWorker(targetFolderPath , regex);
-        
+        String regex = (String) searchKeyword.getSelectedItem();
+
+        searchWorker = new ExcelGrepSearchWorker(targetFolderPath, regex);
+        searchWorker.execute();
+
+    }
+
+    class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
+        Path path;
+        Pattern regex;
+
+
+        public ExcelGrepSearchWorker(String path, String regex) {
+            super();
+            this.path = Paths.get(path);
+            this.regex = Pattern.compile(regex);
+        }
+
+
+        @Override
+        protected Void doInBackground() throws Exception {
+            Files.walk(path).forEach((it) -> {
+                if(isCancelled()) {
+                    return;
+                }
+                ExcelGrep grep = new ExcelGrep();
+                grep.grepFile(it, regex);
+                publish(grep.getResultSet());
+            });
+            return null;
+        }
+
+
+        @Override
+        protected void process(List<ExcelGrepResult> chunks) {
+            DefaultTableModel model = (DefaultTableModel) table.getModel();
+            for (ExcelGrepResult it : chunks) {
+                for( ExcelData data : it.getResult()) {
+                    ExcelPosition position = data.getPosition();
+                    model.addRow(new Object[] { 
+                            position.getFilePath(),
+                            position.getSheetName(),
+                            position.getCellPosition(),
+                            data.getValue().getStrings()
+                    });
+                }
+            }
+
+        }
+
+
+        @Override
+        protected void done() {
+            // TODO Auto-generated method stub
+            super.done();
+        }
+
+
+
     }
 
 }

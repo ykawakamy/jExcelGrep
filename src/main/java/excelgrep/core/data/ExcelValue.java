@@ -45,7 +45,11 @@ public class ExcelValue {
         return builder.toString();
     }
     
-    
-    
-    
+    public String getStrings() {
+        StringBuilder builder = new StringBuilder();
+        for( String it : values ) {
+            builder.append(it);
+        }
+        return builder.toString();
+    }
 }
