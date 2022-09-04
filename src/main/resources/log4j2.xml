@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="off">
+
+  <!-- AppenterやLoggerで使用するプロパティを定義する -->
+  <Properties>
+    <Property name="...">hoge</Property>
+    <Property name="..." value="..." />
+  </Properties>
+
+  <!-- ログの出力先と出力フォーマットを設定する -->
+  <Appenders>
+    <Console name="stdout" target="SYSTEM_OUT">
+    </Console>
+    <File name="file" fileName="all.log" immediateFlush="false"
+      append="false">
+      <PatternLayout
+        pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+    </File>
+  </Appenders>
+
+  <!-- パッケージごとにAppenderとログレベルを組み合わせる -->
+  <Loggers>
+    <Root level="trace">
+      <AppenderRef ref="stdout" />
+      <AppenderRef ref="file"/>
+    </Root>
+  </Loggers>
+</Configuration>
