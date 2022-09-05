@@ -1,13 +1,17 @@
 package excelgrep.gui;
 
 import java.awt.BorderLayout;
+import java.awt.Desktop;
 import java.awt.EventQueue;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,12 +32,18 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import com.oracle.tools.packager.Log;
 import excelgrep.core.ExcelGrep;
+import excelgrep.core.ExcelGrepHSSFListener;
 import excelgrep.core.data.ExcelData;
 import excelgrep.core.data.ExcelGrepResult;
 import excelgrep.core.data.ExcelPosition;
+import javax.swing.ListSelectionModel;
 
 public class ExcelGrepGuiMain {
+    static Logger log = LogManager.getLogger(ExcelGrepGuiMain.class);
 
     private JFrame frame;
     private JTable table;
@@ -92,8 +102,10 @@ public class ExcelGrepGuiMain {
 
 
         table = new JTable();
+        table.setEnabled(false);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setFillsViewportHeight(true);
-        table.setModel(new DefaultTableModel(new Object[][] {{null, null, null, null},}, new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"}));
+        table.setModel(new ExcelGrepResultTableModel(new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"}));
         JScrollPane mainPanel = new JScrollPane(table);
 
         frame.getContentPane().add(mainPanel, BorderLayout.CENTER);
@@ -195,13 +207,38 @@ public class ExcelGrepGuiMain {
         panel_2.add(progressBar_1, gbc_progressBar_1);;
 
         registerEventHandlers();
-        
+
         searchFolder.setSelectedItem("D:\\workspaces\\e2019-product\\excel-grep\\src\\test\\input\\case1");
+        searchKeyword.addItem("ガス");
+
     }
 
     private void registerEventHandlers() {
         selectFolderButton.addActionListener(this::onClick_selectFolderButton);
         searchButton.addActionListener(this::onClick_searchButton);
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if( e.getClickCount()!=2 ) {
+                    return;
+                }
+                
+                if (!Desktop.isDesktopSupported()) {
+                    return;
+                }
+                try {
+                    int idx = table.getSelectedRow();
+                    if(idx == -1 ) {
+                        return;
+                    }
+                    Path filepath = (Path) table.getModel().getValueAt(idx, 0);
+                    Desktop.getDesktop().open(filepath.toFile());
+                } catch (IOException ex) {
+                    log.error("failed to launch", ex);
+                }
+            }
+
+        });
 
     }
 
@@ -218,7 +255,6 @@ public class ExcelGrepGuiMain {
         if (selected == JFileChooser.APPROVE_OPTION) {
             File selectedFile = filechooser.getSelectedFile();
             String newFolderPath = selectedFile.getAbsolutePath();
-            searchFolder.addItem(newFolderPath);
             searchFolder.setSelectedItem(newFolderPath);
         }
     }
@@ -226,6 +262,12 @@ public class ExcelGrepGuiMain {
     void onClick_searchButton(ActionEvent e) {
         String targetFolderPath = (String) searchFolder.getSelectedItem();
         String regex = (String) searchKeyword.getSelectedItem();
+
+        if (regex == null) {
+            return;
+        }
+        searchFolder.addItem(targetFolderPath);
+        searchKeyword.addItem(regex);
 
         searchWorker = new ExcelGrepSearchWorker(targetFolderPath, regex);
         searchWorker.execute();
@@ -246,8 +288,10 @@ public class ExcelGrepGuiMain {
 
         @Override
         protected Void doInBackground() throws Exception {
+            table.setEnabled(false);
+
             Files.walk(path).forEach((it) -> {
-                if(isCancelled()) {
+                if (isCancelled()) {
                     return;
                 }
                 ExcelGrep grep = new ExcelGrep();
@@ -260,16 +304,10 @@ public class ExcelGrepGuiMain {
 
         @Override
         protected void process(List<ExcelGrepResult> chunks) {
-            DefaultTableModel model = (DefaultTableModel) table.getModel();
+            ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
             for (ExcelGrepResult it : chunks) {
-                for( ExcelData data : it.getResult()) {
-                    ExcelPosition position = data.getPosition();
-                    model.addRow(new Object[] { 
-                            position.getFilePath(),
-                            position.getSheetName(),
-                            position.getCellPosition(),
-                            data.getValue().getStrings()
-                    });
+                for (ExcelData data : it.getResult()) {
+                    model.addRow(data);
                 }
             }
 
@@ -278,8 +316,8 @@ public class ExcelGrepGuiMain {
 
         @Override
         protected void done() {
-            // TODO Auto-generated method stub
-            super.done();
+            table.setEnabled(true);
+
         }
 
 

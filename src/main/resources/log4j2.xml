@@ -20,7 +20,7 @@
 
   <!-- パッケージごとにAppenderとログレベルを組み合わせる -->
   <Loggers>
-    <Root level="trace">
+    <Root level="info">
       <AppenderRef ref="stdout" />
       <AppenderRef ref="file"/>
     </Root>
