@@ -23,4 +23,8 @@ public class ExcelGrepResult {
     public ExcelData getResult(int i) {
         return result.get(i);
     }
+
+    public void clear() {
+        result.clear();
+    }
 }

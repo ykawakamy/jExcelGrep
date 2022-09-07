@@ -55,5 +55,9 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
     public void addRow(ExcelData data) {
         result.add(data);
     }
+    
+    public void clear() {
+        result.clear();
+    }
 
 }

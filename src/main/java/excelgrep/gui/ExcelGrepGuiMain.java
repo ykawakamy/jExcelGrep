@@ -11,11 +11,17 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.regex.Pattern;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -43,6 +49,12 @@ import excelgrep.core.data.ExcelPosition;
 import javax.swing.ListSelectionModel;
 
 public class ExcelGrepGuiMain {
+    private static final String SETTING_PREFIX_KEYWORD = "keyword";
+
+    private static final String SETTING_PREFIX_FOLDER = "folder";
+
+    private static final String SETTING_PROPERTIES = "excelgrep.properties";
+
     static Logger log = LogManager.getLogger(ExcelGrepGuiMain.class);
 
     private JFrame frame;
@@ -61,6 +73,8 @@ public class ExcelGrepGuiMain {
     private JProgressBar progressBar;
     private JProgressBar progressBar_1;
     private ExcelGrepSearchWorker searchWorker;
+
+    private Properties prop;
 
     /**
      * Launch the application.
@@ -90,6 +104,41 @@ public class ExcelGrepGuiMain {
      */
     public ExcelGrepGuiMain() {
         initialize();
+        loadProperty();
+    }
+
+    private void loadProperty() {
+        try {
+            prop = new Properties();
+            prop.load(new FileInputStream(new File(SETTING_PROPERTIES)));
+
+            for (Entry<Object, Object> p : prop.entrySet()) {
+                String key = p.getKey().toString();
+                if (key.startsWith(SETTING_PREFIX_FOLDER)) {
+                    searchFolder.setSelectedItem(p.getValue().toString());
+                } else if (key.startsWith(SETTING_PREFIX_KEYWORD)) {
+                    searchKeyword.setSelectedItem(p.getValue().toString());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("failed to load properties.", e);
+        }
+    }
+
+    private void saveProperties() {
+        try {
+            prop = new Properties();
+            for (int i = 0; i < searchFolder.getItemCount(); i++) {
+                prop.setProperty(SETTING_PREFIX_FOLDER + i, searchFolder.getItemAt(i));
+            }
+            for (int i = 0; i < searchKeyword.getItemCount(); i++) {
+                prop.setProperty(SETTING_PREFIX_KEYWORD + i, searchKeyword.getItemAt(i));
+            }
+            prop.store(new FileOutputStream(SETTING_PROPERTIES), "");
+        } catch (IOException e) {
+            log.warn("failed to save properties.", e);
+
+        }
     }
 
     /**
@@ -207,10 +256,6 @@ public class ExcelGrepGuiMain {
         panel_2.add(progressBar_1, gbc_progressBar_1);;
 
         registerEventHandlers();
-
-        searchFolder.setSelectedItem("D:\\workspaces\\e2019-product\\excel-grep\\src\\test\\input\\case1");
-        searchKeyword.addItem("ガス");
-
     }
 
     private void registerEventHandlers() {
@@ -219,16 +264,16 @@ public class ExcelGrepGuiMain {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if( e.getClickCount()!=2 ) {
+                if (e.getClickCount() != 2) {
                     return;
                 }
-                
+
                 if (!Desktop.isDesktopSupported()) {
                     return;
                 }
                 try {
                     int idx = table.getSelectedRow();
-                    if(idx == -1 ) {
+                    if (idx == -1) {
                         return;
                     }
                     Path filepath = (Path) table.getModel().getValueAt(idx, 0);
@@ -269,15 +314,18 @@ public class ExcelGrepGuiMain {
         searchFolder.addItem(targetFolderPath);
         searchKeyword.addItem(regex);
 
+        saveProperties();
+
         searchWorker = new ExcelGrepSearchWorker(targetFolderPath, regex);
         searchWorker.execute();
 
     }
 
+
     class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
         Path path;
         Pattern regex;
-
+        long starttime;
 
         public ExcelGrepSearchWorker(String path, String regex) {
             super();
@@ -289,15 +337,22 @@ public class ExcelGrepGuiMain {
         @Override
         protected Void doInBackground() throws Exception {
             table.setEnabled(false);
+            ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
+            model.clear();
+            
+            statusBar.setText("検索中");
+            starttime = System.currentTimeMillis();
 
             Files.walk(path).forEach((it) -> {
                 if (isCancelled()) {
                     return;
                 }
+
                 ExcelGrep grep = new ExcelGrep();
                 grep.grepFile(it, regex);
                 publish(grep.getResultSet());
             });
+
             return null;
         }
 
@@ -316,6 +371,10 @@ public class ExcelGrepGuiMain {
 
         @Override
         protected void done() {
+            long endtime = System.currentTimeMillis();
+
+            statusBar.setText((endtime-starttime) + "ms");
+
             table.setEnabled(true);
 
         }

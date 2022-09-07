@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.xml.parsers.ParserConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.poi.hssf.eventusermodel.HSSFEventFactory;
 import org.apache.poi.hssf.eventusermodel.HSSFRequest;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
@@ -31,6 +33,8 @@ import excelgrep.core.data.ExcelData;
 import excelgrep.core.data.ExcelGrepResult;
 
 public class ExcelGrep {
+    static Logger log = LogManager.getLogger(ExcelGrep.class);
+    
     ExcelGrepResult result = new ExcelGrepResult();
 
     public void grepFiles(Path path, Pattern regex) throws IOException {
@@ -52,9 +56,9 @@ public class ExcelGrep {
     }
 
     private void grepXSSF(Path file, Pattern regex) {
-        try {
-            OPCPackage pkg = OPCPackage.open(file.toString(), PackageAccess.READ);
-
+        try ( 
+                OPCPackage pkg = OPCPackage.open(file.toString(), PackageAccess.READ);
+            ){
             ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg, false);
             XSSFReader xssfReader = new XSSFReader(pkg);
             StylesTable styles = xssfReader.getStylesTable();
@@ -74,8 +78,11 @@ public class ExcelGrep {
 
                 getResultSet().addAll(listener.result);
             }
+            
         } catch (Exception e) {
+            log.error("unexpected exception." , e);
         }
+        
     }
 
     private void grepHSSF(Path file, Pattern regex) {
@@ -89,6 +96,7 @@ public class ExcelGrep {
             getResultSet().addAll(listener.result);
             listener._debug();
         } catch (IOException e) {
+            log.error("unexpected exception." , e);
         }
     }
 
