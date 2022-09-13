@@ -47,7 +47,11 @@ public class ExcelGrep {
         if (file.toFile().isDirectory()) {
             return;
         }
-        String filename = file.toString();
+        String filename = file.getFileName().toString();
+        if(filename.startsWith("~$")) {
+            return;
+        }
+        
         if (filename.endsWith(".xls")) {
             grepHSSF(file, regex);
         } else if (filename.endsWith(".xlsx") || filename.endsWith(".xlsm")) {
@@ -94,7 +98,6 @@ public class ExcelGrep {
             factory.processEvents(req, din);
 
             getResultSet().addAll(listener.result);
-            listener._debug();
         } catch (IOException e) {
             log.error("unexpected exception." , e);
         }

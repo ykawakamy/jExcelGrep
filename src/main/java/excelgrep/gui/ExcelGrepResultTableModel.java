@@ -27,7 +27,7 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        ExcelData data = result.getResult(rowIndex);
+        ExcelData data = getRow(rowIndex);
         switch( columnIndex ) {
             case 0:
                 return data.getPosition().getFilePath();
@@ -39,6 +39,10 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
                 return data.getValue().getStrings();
         }
         return null;
+    }
+
+    public ExcelData getRow(int rowIndex) {
+        return result.getResult(rowIndex);
     }
 
     public String getColumnName(int column) {

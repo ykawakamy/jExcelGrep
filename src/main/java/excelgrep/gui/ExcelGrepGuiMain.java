@@ -12,7 +12,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +19,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Pattern;
 import javax.swing.JButton;
@@ -32,21 +30,16 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableModel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.oracle.tools.packager.Log;
 import excelgrep.core.ExcelGrep;
-import excelgrep.core.ExcelGrepHSSFListener;
 import excelgrep.core.data.ExcelData;
 import excelgrep.core.data.ExcelGrepResult;
-import excelgrep.core.data.ExcelPosition;
-import javax.swing.ListSelectionModel;
 
 public class ExcelGrepGuiMain {
     private static final String SETTING_PREFIX_KEYWORD = "keyword";
@@ -115,9 +108,9 @@ public class ExcelGrepGuiMain {
             for (Entry<Object, Object> p : prop.entrySet()) {
                 String key = p.getKey().toString();
                 if (key.startsWith(SETTING_PREFIX_FOLDER)) {
-                    searchFolder.setSelectedItem(p.getValue().toString());
+                    searchFolder.addItem(p.getValue().toString());
                 } else if (key.startsWith(SETTING_PREFIX_KEYWORD)) {
-                    searchKeyword.setSelectedItem(p.getValue().toString());
+                    searchKeyword.addItem(p.getValue().toString());
                 }
             }
         } catch (Exception e) {
@@ -264,27 +257,46 @@ public class ExcelGrepGuiMain {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() != 2) {
-                    return;
-                }
-
-                if (!Desktop.isDesktopSupported()) {
-                    return;
-                }
-                try {
-                    int idx = table.getSelectedRow();
-                    if (idx == -1) {
-                        return;
-                    }
-                    Path filepath = (Path) table.getModel().getValueAt(idx, 0);
-                    Desktop.getDesktop().open(filepath.toFile());
-                } catch (IOException ex) {
-                    log.error("failed to launch", ex);
-                }
+                launchExcel(e);
             }
+
 
         });
 
+    }
+
+    private void launchExcel(MouseEvent e) {
+        if (e.getClickCount() != 2) {
+            return;
+        }
+        int idx = table.getSelectedRow();
+        if (idx == -1) {
+            return;
+        }
+        Path filepath = (Path) table.getModel().getValueAt(idx, 0);
+        String sheet = (String) table.getModel().getValueAt(idx, 1);
+        
+//        launchExcelUsingVbs(filepath, sheet);
+        launchExcelUsingDesktop(filepath);
+    }
+
+    private void launchExcelUsingVbs(Path filepath, String sheet) {
+        try {
+            String format = String.format("wscript launchExcel.vbs %s %s", filepath, sheet);
+            Runtime.getRuntime().exec( format );
+         }catch (Exception e) {
+             
+         }
+    }
+    private void launchExcelUsingDesktop(Path filepath) {
+        if (!Desktop.isDesktopSupported()) {
+            return;
+        }
+        try {
+            Desktop.getDesktop().open(filepath.toFile());
+        } catch (IOException ex) {
+            log.error("failed to launch", ex);
+        }
     }
 
     void onClick_selectFolderButton(ActionEvent e) {
@@ -308,12 +320,23 @@ public class ExcelGrepGuiMain {
         String targetFolderPath = (String) searchFolder.getSelectedItem();
         String regex = (String) searchKeyword.getSelectedItem();
 
+        if (targetFolderPath == null) {
+            return;
+        }
+
         if (regex == null) {
             return;
         }
-        searchFolder.addItem(targetFolderPath);
-        searchKeyword.addItem(regex);
+        
+        searchFolder.removeItem(targetFolderPath);
+        searchKeyword.removeItem(regex);
+        
+        searchFolder.insertItemAt(targetFolderPath , 0 );
+        searchKeyword.insertItemAt(regex, 0);
 
+        searchFolder.setSelectedItem(targetFolderPath);
+        searchKeyword.setSelectedItem(regex);
+        
         saveProperties();
 
         searchWorker = new ExcelGrepSearchWorker(targetFolderPath, regex);

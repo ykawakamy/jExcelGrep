@@ -1,46 +1,72 @@
 package excelgrep.core;
 
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.ddf.EscherRecord;
 import org.apache.poi.hssf.eventusermodel.HSSFListener;
-import org.apache.poi.hssf.record.*;
+import org.apache.poi.hssf.record.AbstractEscherHolderRecord;
+import org.apache.poi.hssf.record.BOFRecord;
+import org.apache.poi.hssf.record.BlankRecord;
+import org.apache.poi.hssf.record.BoolErrRecord;
+import org.apache.poi.hssf.record.BoundSheetRecord;
+import org.apache.poi.hssf.record.CellRecord;
+import org.apache.poi.hssf.record.CellValueRecordInterface;
+import org.apache.poi.hssf.record.CommonObjectDataSubRecord;
+import org.apache.poi.hssf.record.DrawingGroupRecord;
+import org.apache.poi.hssf.record.DrawingRecord;
+import org.apache.poi.hssf.record.EOFRecord;
+import org.apache.poi.hssf.record.ExtendedFormatRecord;
+import org.apache.poi.hssf.record.FontRecord;
+import org.apache.poi.hssf.record.FormatRecord;
+import org.apache.poi.hssf.record.FormulaRecord;
+import org.apache.poi.hssf.record.LabelSSTRecord;
+import org.apache.poi.hssf.record.MergeCellsRecord;
+import org.apache.poi.hssf.record.MulBlankRecord;
+import org.apache.poi.hssf.record.NoteRecord;
+import org.apache.poi.hssf.record.NumberRecord;
+import org.apache.poi.hssf.record.ObjRecord;
+import org.apache.poi.hssf.record.PaletteRecord;
+import org.apache.poi.hssf.record.RKRecord;
+import org.apache.poi.hssf.record.Record;
+import org.apache.poi.hssf.record.RowRecord;
+import org.apache.poi.hssf.record.SSTRecord;
+import org.apache.poi.hssf.record.StringRecord;
+import org.apache.poi.hssf.record.StyleRecord;
+import org.apache.poi.hssf.record.SubRecord;
+import org.apache.poi.hssf.record.TextObjectRecord;
 import org.apache.poi.hssf.record.cont.ContinuableRecord;
-import excelgrep.core.data.ExcelData;
-import excelgrep.core.data.ExcelGrepResult;
 import excelgrep.core.data.ExcelPosition;
-import excelgrep.core.data.ExcelPosition.ExcelPositionType;
 
-public class ExcelGrepHSSFListener implements HSSFListener {
+public class ExcelGrepHSSFListener extends AbstractResultCollectListener implements HSSFListener {
     static Logger log = LogManager.getLogger(ExcelGrepHSSFListener.class);
-
-    ExcelGrepResult result = new ExcelGrepResult();
-
-    private Path filePath;
-    private Pattern regex;
 
     private String currentSheetName;
     private ExcelPosition cellPostion;
 
     private SSTRecord SST;
-
-    private Set<String> trace_kindRecords = new HashSet<>();
+    private List<BoundSheetRecord> boundSheetRecords;
+    private int activeSheetIdx = 0;
 
     public ExcelGrepHSSFListener(Path filePath, Pattern regex) {
-        super();
-        this.filePath = filePath;
-        this.regex = regex;
+        super(filePath, regex);
+        this.boundSheetRecords = new ArrayList<>();
     }
 
     @Override
     public void processRecord(Record record) {
-        if( log.isTraceEnabled() ) {
-            log.trace("trace: {} - {}", record.getClass().getSimpleName(), record);
-            trace_kindRecords.add(record.getClass().getSimpleName());
+
+        try {
+            internalProcessRecord(record);
+        } catch (Exception e) {
+            log.error("unexpected exception.", e);
         }
+    }
+
+    private void internalProcessRecord(Record record) {
         switch (record.getSid()) {
             case BoundSheetRecord.sid:
                 onRecord((BoundSheetRecord) record);
@@ -53,6 +79,9 @@ public class ExcelGrepHSSFListener implements HSSFListener {
                 break;
             case ObjRecord.sid:
                 onRecord((ObjRecord) record);
+                break;
+            case MulBlankRecord.sid:
+                onRecord((MulBlankRecord) record);
                 break;
             case BlankRecord.sid:
                 onRecord((BlankRecord) record);
@@ -68,8 +97,14 @@ public class ExcelGrepHSSFListener implements HSSFListener {
             case PaletteRecord.sid:
                 // Skip
                 break;
+            case RowRecord.sid:
+                onRecord((RowRecord) record);
+                break;
+
+            case NoteRecord.sid:
+                onRecord((NoteRecord) record);
+                break;
             default:
-                // TODO need fix
                 if (record instanceof CellValueRecordInterface) {
                     onRecord((CellValueRecordInterface) record);
                 }
@@ -77,38 +112,61 @@ public class ExcelGrepHSSFListener implements HSSFListener {
                     onRecord((CellRecord) record);
                 } else if (record instanceof ContinuableRecord) {
                     onRecord((ContinuableRecord) record);
+                } else if (record instanceof AbstractEscherHolderRecord) {
+                    onRecord((AbstractEscherHolderRecord) record);
                 } else {
-                    if(!log.isTraceEnabled()) {
-                        log.debug("unhandled: {} - {}", record.getClass().getSimpleName(), record);
-                    }
+                    log.trace("unhandled: {} - {}", record.getClass().getSimpleName(), record);
                 }
                 break;
         }
+    }
 
-        
+    private void onRecord(NoteRecord record) {
+        record.getShapeId();
 
+    }
+
+    private void onRecord(MulBlankRecord record) {
+        cellPostion = new ExcelPosition(filePath, currentSheetName, record.getRow(), record.getFirstColumn());
+
+    }
+
+    private void onRecord(RowRecord record) {
+        cellPostion = new ExcelPosition(filePath, currentSheetName, record.getRowNumber(), record.getFirstCol());
+
+    }
+
+    private void onRecord(AbstractEscherHolderRecord record) {
+        if (record instanceof DrawingGroupRecord) {
+            DrawingGroupRecord casted = (DrawingGroupRecord) record;
+            casted.processChildRecords();
+        }
+        List<EscherRecord> escherRecords = record.getEscherRecords();
+        onEscherRecord(escherRecords);
+    }
+
+    private void onEscherRecord(List<EscherRecord> escherRecords) {
+        if (escherRecords.isEmpty()) {
+            return;
+        }
+        for (EscherRecord it : escherRecords) {
+            onEscherRecord(it.getChildRecords());
+            log.debug("{}", it);
+        }
     }
 
     private void onRecord(CellValueRecordInterface record) {
         cellPostion = new ExcelPosition(filePath, currentSheetName, record.getRow(), record.getColumn());
     }
 
-    private void onRecord(BlankRecord record) {
-        cellPostion = new ExcelPosition(filePath, currentSheetName, record.getRow(), record.getColumn());
-}
-
-    private void onRecord(DrawingRecord record) {
-    }
+    private void onRecord(DrawingRecord record) {}
 
     private void onRecord(ObjRecord record) {
-        for(SubRecord subRecord : record.getSubRecords() ) {
-            if( log.isTraceEnabled() ) {
-                log.trace("trace sub: {} - {}", subRecord.getClass().getSimpleName(), subRecord);
-                trace_kindRecords.add(subRecord.getClass().getSimpleName());
-            }            
-            if( subRecord instanceof CommonObjectDataSubRecord) {
+        for (SubRecord subRecord : record.getSubRecords()) {
+            if (subRecord instanceof CommonObjectDataSubRecord) {
+                CommonObjectDataSubRecord casted = (CommonObjectDataSubRecord) subRecord;
             }
-            if( subRecord instanceof CommonObjectDataSubRecord) {
+            if (subRecord instanceof CommonObjectDataSubRecord) {
             }
         }
     }
@@ -130,14 +188,14 @@ public class ExcelGrepHSSFListener implements HSSFListener {
     }
 
     private void onRecord(TextObjectRecord record) {
-        cellPostion = new ExcelPosition(filePath, currentSheetName, ExcelPositionType.Shape);
-        addResult(record.getStr().toString());
+        // cellPostion = new ExcelPosition(filePath, currentSheetName, ExcelPositionType.Shape);
+        addResult(cellPostion, record.getStr().toString());
     }
 
     private void onRecord(StringRecord record) {
         String string = record.getString();
 
-        addResult(string);
+        addResult(cellPostion, string);
     }
 
     private void onRecord(SSTRecord record) {
@@ -183,16 +241,7 @@ public class ExcelGrepHSSFListener implements HSSFListener {
 
     private void onRecord(LabelSSTRecord record) {
         String string = SST.getString(record.getSSTIndex()).getString();
-        addResult(string);
-    }
-
-    private void addResult(String string) {
-        if( !regex.matcher(string).find() ) {
-            return;
-        }
-        
-        ExcelData data = new ExcelData(cellPostion, string);
-        result.add(data);
+        addResult(cellPostion, string);
     }
 
     private void onRecord(FormulaRecord record) {
@@ -208,18 +257,16 @@ public class ExcelGrepHSSFListener implements HSSFListener {
     private void onRecord(BOFRecord record) {
         switch (record.getType()) {
             case BOFRecord.TYPE_WORKSHEET:
+                currentSheetName = boundSheetRecords.get(activeSheetIdx).getSheetname();
+                activeSheetIdx++;
                 break;
         }
     }
 
 
     private void onRecord(BoundSheetRecord record) {
-        currentSheetName = record.getSheetname();
+        boundSheetRecords.add(record);
 
-    }
-
-    public void _debug() {
-        log.trace("kindRecords: {}", trace_kindRecords);
     }
 
 }
