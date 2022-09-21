@@ -1,5 +1,6 @@
 package excelgrep.gui;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Vector;
 import javax.swing.table.AbstractTableModel;
@@ -9,6 +10,8 @@ import excelgrep.core.data.ExcelGrepResult;
 @SuppressWarnings("serial")
 public class ExcelGrepResultTableModel extends AbstractTableModel {
     protected List<String> columnIdentifiers;
+    protected Path basePath;
+    
     ExcelGrepResult result = new ExcelGrepResult();
 
     public ExcelGrepResultTableModel(String[] columnNames) {
@@ -30,7 +33,7 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
         ExcelData data = getRow(rowIndex);
         switch( columnIndex ) {
             case 0:
-                return data.getPosition().getFilePath();
+                return basePath.relativize(data.getPosition().getFilePath());
             case 1:
                 return data.getPosition().getSheetName();
             case 2:
@@ -45,6 +48,7 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
         return result.getResult(rowIndex);
     }
 
+    @Override
     public String getColumnName(int column) {
         Object id = null;
         // This test is to cover the case when
@@ -60,7 +64,8 @@ public class ExcelGrepResultTableModel extends AbstractTableModel {
         result.add(data);
     }
     
-    public void clear() {
+    public void clear(Path path) {
+        basePath = path;
         result.clear();
     }
 

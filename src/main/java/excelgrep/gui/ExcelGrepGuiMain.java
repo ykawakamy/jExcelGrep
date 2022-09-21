@@ -14,13 +14,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.TreeSet;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -32,14 +33,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
-import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.table.TableModel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import excelgrep.core.ExcelGrep;
+import org.apache.logging.log4j.util.Strings;
 import excelgrep.core.data.ExcelData;
-import excelgrep.core.data.ExcelGrepResult;
 
 public class ExcelGrepGuiMain {
     private static final String SETTING_PREFIX_KEYWORD = "keyword";
@@ -62,8 +62,8 @@ public class ExcelGrepGuiMain {
     private JComboBox<String> searchKeyword;
     private JButton searchButton;
     private JPanel panel_2;
-    private JLabel statusBar;
-    private JProgressBar progressBar;
+    JLabel statusBar;
+    JProgressBar progressBar;
     private JProgressBar progressBar_1;
     private ExcelGrepSearchWorker searchWorker;
 
@@ -105,7 +105,11 @@ public class ExcelGrepGuiMain {
             prop = new Properties();
             prop.load(new FileInputStream(new File(SETTING_PROPERTIES)));
 
-            for (Entry<Object, Object> p : prop.entrySet()) {
+            Comparator<Entry<Object, Object>> comparing = Comparator.comparing((it)->it.getKey().toString(), Comparator.naturalOrder());
+            Set<Entry<Object, Object>> entrySet = new TreeSet<>(comparing);
+            entrySet.addAll(prop.entrySet());
+            
+            for (Entry<Object, Object> p : entrySet) {
                 String key = p.getKey().toString();
                 if (key.startsWith(SETTING_PREFIX_FOLDER)) {
                     searchFolder.addItem(p.getValue().toString());
@@ -148,6 +152,10 @@ public class ExcelGrepGuiMain {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setFillsViewportHeight(true);
         table.setModel(new ExcelGrepResultTableModel(new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"}));
+        table.getColumnModel().getColumn(0).setPreferredWidth(237);
+        table.getColumnModel().getColumn(1).setPreferredWidth(38);
+        table.getColumnModel().getColumn(2).setPreferredWidth(49);
+        table.getColumnModel().getColumn(3).setPreferredWidth(253);
         JScrollPane mainPanel = new JScrollPane(table);
 
         frame.getContentPane().add(mainPanel, BorderLayout.CENTER);
@@ -273,26 +281,34 @@ public class ExcelGrepGuiMain {
         if (idx == -1) {
             return;
         }
-        Path filepath = (Path) table.getModel().getValueAt(idx, 0);
-        String sheet = (String) table.getModel().getValueAt(idx, 1);
+        ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
+
+        ExcelData row = model.getRow(idx);
+
         
-//        launchExcelUsingVbs(filepath, sheet);
-        launchExcelUsingDesktop(filepath);
+//        launchExcelUsingVbs(row);
+        launchExcelUsingDesktop(row);
     }
 
-    private void launchExcelUsingVbs(Path filepath, String sheet) {
+    private void launchExcelUsingVbs(ExcelData row) {
         try {
+            Path filepath = (Path) row.getPosition().getFilePath();
+            String sheet = (String) row.getPosition().getSheetName();
+
             String format = String.format("wscript launchExcel.vbs %s %s", filepath, sheet);
             Runtime.getRuntime().exec( format );
          }catch (Exception e) {
              
          }
     }
-    private void launchExcelUsingDesktop(Path filepath) {
+    private void launchExcelUsingDesktop(ExcelData row) {
         if (!Desktop.isDesktopSupported()) {
             return;
         }
         try {
+            Path filepath = (Path) row.getPosition().getFilePath();
+            String sheet = (String) row.getPosition().getSheetName();
+            
             Desktop.getDesktop().open(filepath.toFile());
         } catch (IOException ex) {
             log.error("failed to launch", ex);
@@ -339,71 +355,16 @@ public class ExcelGrepGuiMain {
         
         saveProperties();
 
-        searchWorker = new ExcelGrepSearchWorker(targetFolderPath, regex);
+        // searchWorker = new ExcelGrepSearchWorker(this, targetFolderPath, regex, table);
+        searchWorker = new ExcelGrepSearchMultiThreadWorker(this, targetFolderPath, regex, table);
+        
         searchWorker.execute();
 
     }
 
 
-    class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
-        Path path;
-        Pattern regex;
-        long starttime;
-
-        public ExcelGrepSearchWorker(String path, String regex) {
-            super();
-            this.path = Paths.get(path);
-            this.regex = Pattern.compile(regex);
-        }
-
-
-        @Override
-        protected Void doInBackground() throws Exception {
-            table.setEnabled(false);
-            ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
-            model.clear();
-            
-            statusBar.setText("検索中");
-            starttime = System.currentTimeMillis();
-
-            Files.walk(path).forEach((it) -> {
-                if (isCancelled()) {
-                    return;
-                }
-
-                ExcelGrep grep = new ExcelGrep();
-                grep.grepFile(it, regex);
-                publish(grep.getResultSet());
-            });
-
-            return null;
-        }
-
-
-        @Override
-        protected void process(List<ExcelGrepResult> chunks) {
-            ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
-            for (ExcelGrepResult it : chunks) {
-                for (ExcelData data : it.getResult()) {
-                    model.addRow(data);
-                }
-            }
-
-        }
-
-
-        @Override
-        protected void done() {
-            long endtime = System.currentTimeMillis();
-
-            statusBar.setText((endtime-starttime) + "ms");
-
-            table.setEnabled(true);
-
-        }
-
-
-
+    public void updateStatusBar(String text) {
+        statusBar.setText(text);
     }
 
 }
