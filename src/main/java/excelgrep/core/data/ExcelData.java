@@ -1,11 +1,18 @@
 package excelgrep.core.data;
 
+import java.nio.file.Path;
 import java.util.Objects;
+import excelgrep.core.data.ExcelPosition.ExcelPositionType;
 
 public class ExcelData {
     ExcelPosition position = new ExcelPosition();
     ExcelValue value = new ExcelValue();
+
+    public static ExcelData newLoadFailure(Path file, Exception e) {
+        return new ExcelData(new ExcelPosition(file, "", ExcelPositionType.LoadFailure), e.toString() );
+    }
     
+
     public ExcelData(ExcelPosition cellPostion, String string) {
         this.position = cellPostion;
         this.getValue().add(string);
@@ -31,6 +38,5 @@ public class ExcelData {
     public ExcelValue getValue() {
         return value;
     }
-    
     
 }

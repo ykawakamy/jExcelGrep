@@ -18,7 +18,9 @@ public class ExcelPosition {
 
     public enum ExcelPositionType{
         Cell("cell"),
-        Shape("[Shape]"),;
+        Shape("[Shape]"),
+        LoadFailure("[LoadFailure]"),
+        ;
 
         String typeName;
         ExcelPositionType(String typeName) {

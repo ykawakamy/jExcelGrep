@@ -8,17 +8,18 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -27,6 +28,9 @@ import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
@@ -35,10 +39,8 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.table.TableModel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 import excelgrep.core.data.ExcelData;
 
 public class ExcelGrepGuiMain {
@@ -47,9 +49,15 @@ public class ExcelGrepGuiMain {
     private static final String SETTING_PREFIX_FOLDER = "folder";
 
     private static final String SETTING_PROPERTIES = "excelgrep.properties";
+    private static final String CONFIGURATION_PROPERTIES = "config.properties";
 
     static Logger log = LogManager.getLogger(ExcelGrepGuiMain.class);
 
+    // 
+    private Configuration configuration;
+    private Properties prop;
+    
+    // GUIs
     private JFrame frame;
     private JTable table;
     private JPanel panel;
@@ -67,7 +75,9 @@ public class ExcelGrepGuiMain {
     private JProgressBar progressBar_1;
     private ExcelGrepSearchWorker searchWorker;
 
-    private Properties prop;
+    private JMenuBar menuBar;
+    private JMenu menuCategoryFile;
+    private JMenuItem menuSettings;
 
     /**
      * Launch the application.
@@ -97,7 +107,20 @@ public class ExcelGrepGuiMain {
      */
     public ExcelGrepGuiMain() {
         initialize();
+        loadConfiguration();
         loadProperty();
+    }
+
+    private void loadConfiguration() {
+        ConfigurationManager configurationManager = new ConfigurationManager();
+        setConfiguration(configurationManager.loadFile(new File(CONFIGURATION_PROPERTIES)));
+    }
+
+    public void setConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+        ConfigurationManager configurationManager = new ConfigurationManager();
+        configurationManager.saveFile(new File(CONFIGURATION_PROPERTIES));
+        
     }
 
     private void loadProperty() {
@@ -146,12 +169,13 @@ public class ExcelGrepGuiMain {
         frame.setBounds(100, 100, 450, 300);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        ExcelGrepResultTableModel dataModel = new ExcelGrepResultTableModel(new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"});
 
         table = new JTable();
         table.setEnabled(false);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setFillsViewportHeight(true);
-        table.setModel(new ExcelGrepResultTableModel(new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"}));
+        table.setModel(dataModel);
         table.getColumnModel().getColumn(0).setPreferredWidth(237);
         table.getColumnModel().getColumn(1).setPreferredWidth(38);
         table.getColumnModel().getColumn(2).setPreferredWidth(49);
@@ -254,7 +278,22 @@ public class ExcelGrepGuiMain {
         gbc_progressBar_1.anchor = GridBagConstraints.EAST;
         gbc_progressBar_1.gridx = 2;
         gbc_progressBar_1.gridy = 0;
-        panel_2.add(progressBar_1, gbc_progressBar_1);;
+        panel_2.add(progressBar_1, gbc_progressBar_1);
+        
+        menuBar = new JMenuBar();
+        frame.setJMenuBar(menuBar);
+        
+        menuCategoryFile = new JMenu("ファイル");
+        menuBar.add(menuCategoryFile);
+        
+        menuSettings = new JMenuItem("設定");
+        menuSettings.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                PreferenceDialog dialog = new PreferenceDialog(frame, ExcelGrepGuiMain.this);
+                dialog.setVisible(true);
+            }
+        });
+        menuCategoryFile.add(menuSettings);;
 
         registerEventHandlers();
     }
@@ -285,18 +324,29 @@ public class ExcelGrepGuiMain {
 
         ExcelData row = model.getRow(idx);
 
-        
-//        launchExcelUsingVbs(row);
-        launchExcelUsingDesktop(row);
+        switch( configuration.getLaunchMode() ) {
+            case Default:
+                launchExcelUsingDesktop(row);
+                break;
+            case VBScript:
+                launchExcelUsingVbs(row);
+                break;
+        }
     }
 
     private void launchExcelUsingVbs(ExcelData row) {
         try {
             Path filepath = (Path) row.getPosition().getFilePath();
             String sheet = (String) row.getPosition().getSheetName();
-
-            String format = String.format("wscript launchExcel.vbs %s %s", filepath, sheet);
-            Runtime.getRuntime().exec( format );
+            String cell = (String) row.getPosition().getCellPosition();
+            
+            // wscriptへ引数を渡す際、URLEncodeでエスケープの問題を回避。
+            // 
+            String encodedFilepath = URLEncoder.encode(filepath.toString(), "shift-jis");
+            String encodedSheet =  URLEncoder.encode(sheet.toString(), "shift-jis");
+            String encodedCell =  URLEncoder.encode(cell.toString(), "shift-jis");
+            ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedFilepath, encodedSheet, encodedCell );
+            builder.start();
          }catch (Exception e) {
              
          }

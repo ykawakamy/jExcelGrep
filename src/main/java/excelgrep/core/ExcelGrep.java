@@ -84,6 +84,7 @@ public class ExcelGrep {
             }
             
         } catch (Exception e) {
+            getResultSet().add(ExcelData.newLoadFailure(file, e));
             log.error("unexpected exception." , e);
         }
         

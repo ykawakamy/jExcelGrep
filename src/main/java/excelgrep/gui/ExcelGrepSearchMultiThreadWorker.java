@@ -48,6 +48,7 @@ public class ExcelGrepSearchMultiThreadWorker extends ExcelGrepSearchWorker {
             while( !executor.awaitTermination(50, TimeUnit.MILLISECONDS)) {
                 Thread.yield();
             }
+            
         } catch (InterruptedException e) {
         } catch (ExecutionException e) {
             e.printStackTrace();

@@ -12,6 +12,9 @@
     <poi.version>4.1.2</poi.version>
     <junit.version>5.8.2</junit.version>
     <log4j2.version>2.18.0</log4j2.version>
+
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
 
   <dependencies>
@@ -42,7 +45,7 @@
       <artifactId>log4j-core</artifactId>
       <version>${log4j2.version}</version>
     </dependency>
-    
+
     <!--###### testing ##################################### -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -50,6 +53,6 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
   </dependencies>
 </project>

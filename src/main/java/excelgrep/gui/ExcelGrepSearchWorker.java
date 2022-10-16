@@ -88,7 +88,7 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
         this.excelGrepGuiMain.updateStatusBar((endtime-starttime) + "ms");
 
         table.setEnabled(true);
-     //   table.repaint();
+        table.invalidate();
 
     }
 

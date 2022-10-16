@@ -138,8 +138,12 @@ public class ExcelGrepHSSFListener extends AbstractResultCollectListener impleme
 
     private void onRecord(AbstractEscherHolderRecord record) {
         if (record instanceof DrawingGroupRecord) {
-            DrawingGroupRecord casted = (DrawingGroupRecord) record;
-            casted.processChildRecords();
+            try {
+                DrawingGroupRecord casted = (DrawingGroupRecord) record;
+                casted.processChildRecords();
+            }catch(Exception e) {
+                
+            }
         }
         List<EscherRecord> escherRecords = record.getEscherRecords();
         onEscherRecord(escherRecords);
