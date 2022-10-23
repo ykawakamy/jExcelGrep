@@ -27,6 +27,8 @@ public class PreferenceDialog extends JDialog {
         
         this.guiMain = guiMain;
         
+        Configuration configration = guiMain.getConfigration();
+        
         setBounds(100, 100, 450, 300);
         JPanel contentPane;
         contentPane = new JPanel();
@@ -84,6 +86,8 @@ public class PreferenceDialog extends JDialog {
         cancelButton.addActionListener( (e)->{
             PreferenceDialog.this.setVisible(false);
         });
+        
+        launchModeComboBox.setSelectedItem(configration.getLaunchMode());
     }
 
 }

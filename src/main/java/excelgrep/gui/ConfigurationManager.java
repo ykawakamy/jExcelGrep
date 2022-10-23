@@ -2,6 +2,7 @@ package excelgrep.gui;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Properties;
@@ -39,13 +40,26 @@ public class ConfigurationManager {
             }
         } catch (Exception e) {
             log.warn("failed to load properties.", e);
+            
+            return new Configuration();
         }
         
         return configuration ;
         
     }
 
-    public void saveFile(File file) {
+    public void saveFile(File filepath, Configuration configuration) {
         
+        try {
+            Properties prop = new Properties();
+
+            prop.put(LaunchMode.PROPERTY_KEY,configuration.getLaunchMode().toString());
+            prop.put(GrepMode.PROPERTY_KEY,configuration.getGrepMode().toString());
+            
+            prop.store(new FileOutputStream(filepath), "");
+        } catch (Exception e) {
+            log.warn("failed to save properties.", e);
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -45,6 +45,11 @@ End function
 
 On Error Resume Next
 
+opentarget = (Wscript.Arguments.Item(0))
+sheetName = (Wscript.Arguments.Item(1))
+cellAddress = (Wscript.Arguments.Item(2))
+'MsgBox "フルパス: "   & opentarget &  "[" & sheetName & "]" 
+
 opentarget = urldecode(Wscript.Arguments.Item(0))
 sheetName = urldecode(Wscript.Arguments.Item(1))
 cellAddress = urldecode(Wscript.Arguments.Item(2))

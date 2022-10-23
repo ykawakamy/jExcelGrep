@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -113,13 +114,17 @@ public class ExcelGrepGuiMain {
 
     private void loadConfiguration() {
         ConfigurationManager configurationManager = new ConfigurationManager();
-        setConfiguration(configurationManager.loadFile(new File(CONFIGURATION_PROPERTIES)));
+        this.configuration = configurationManager.loadFile(new File(CONFIGURATION_PROPERTIES));
     }
 
     public void setConfiguration(Configuration configuration) {
-        this.configuration = configuration;
         ConfigurationManager configurationManager = new ConfigurationManager();
-        configurationManager.saveFile(new File(CONFIGURATION_PROPERTIES));
+        configurationManager.saveFile(new File(CONFIGURATION_PROPERTIES), configuration);
+        this.configuration = configuration;
+    }
+    
+    public Configuration getConfigration() {
+        return this.configuration;
         
     }
 
@@ -142,6 +147,7 @@ public class ExcelGrepGuiMain {
             }
         } catch (Exception e) {
             log.warn("failed to load properties.", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -157,7 +163,7 @@ public class ExcelGrepGuiMain {
             prop.store(new FileOutputStream(SETTING_PROPERTIES), "");
         } catch (IOException e) {
             log.warn("failed to save properties.", e);
-
+            throw new RuntimeException(e);
         }
     }
 
@@ -173,8 +179,9 @@ public class ExcelGrepGuiMain {
 
         table = new JTable();
         table.setEnabled(false);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.setFillsViewportHeight(true);
+        table.setAutoCreateRowSorter(true);
         table.setModel(dataModel);
         table.getColumnModel().getColumn(0).setPreferredWidth(237);
         table.getColumnModel().getColumn(1).setPreferredWidth(38);
@@ -293,7 +300,7 @@ public class ExcelGrepGuiMain {
                 dialog.setVisible(true);
             }
         });
-        menuCategoryFile.add(menuSettings);;
+        menuCategoryFile.add(menuSettings);
 
         registerEventHandlers();
     }
@@ -320,6 +327,7 @@ public class ExcelGrepGuiMain {
         if (idx == -1) {
             return;
         }
+        idx = table.convertRowIndexToModel(idx);
         ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
 
         ExcelData row = model.getRow(idx);
@@ -340,17 +348,21 @@ public class ExcelGrepGuiMain {
             String sheet = (String) row.getPosition().getSheetName();
             String cell = (String) row.getPosition().getCellPosition();
             
-            // wscriptへ引数を渡す際、URLEncodeでエスケープの問題を回避。
+            // wscriptへ引数を渡す際、      でエスケープの問題を回避。
             // 
-            String encodedFilepath = URLEncoder.encode(filepath.toString(), "shift-jis");
-            String encodedSheet =  URLEncoder.encode(sheet.toString(), "shift-jis");
-            String encodedCell =  URLEncoder.encode(cell.toString(), "shift-jis");
+            String encodedFilepath = encode(filepath.toString());
+            String encodedSheet =  encode(sheet.toString());
+            String encodedCell =  encode(cell.toString());
             ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedFilepath, encodedSheet, encodedCell );
             builder.start();
          }catch (Exception e) {
-             
+             throw new RuntimeException(e);
          }
     }
+    private String encode(String value) throws Exception {
+        return URLEncoder.encode(value,  "MS932");
+    }
+
     private void launchExcelUsingDesktop(ExcelData row) {
         if (!Desktop.isDesktopSupported()) {
             return;
@@ -416,5 +428,6 @@ public class ExcelGrepGuiMain {
     public void updateStatusBar(String text) {
         statusBar.setText(text);
     }
+
 
 }
