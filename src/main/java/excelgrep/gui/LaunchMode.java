@@ -1,8 +1,8 @@
 package excelgrep.gui;
 
 public enum LaunchMode {
-    Default("デフォルト"),
-    VBScript("VBS"), 
+    AwtDesktop("AwtDesktop"),
+    VBScript("VBScript"), 
     ;
     
     final public static String PROPERTY_KEY = "launch_mode";
@@ -13,7 +13,7 @@ public enum LaunchMode {
     }
     
     public static LaunchMode getDefault() {
-        return Default;
+        return VBScript;
     }
     
 }

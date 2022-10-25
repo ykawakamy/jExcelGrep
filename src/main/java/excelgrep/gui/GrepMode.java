@@ -1,8 +1,8 @@
 package excelgrep.gui;
 
 public enum GrepMode {
-    SingleThread("デフォルト"),
-    MultiThread("VBS"),
+    SingleThread("シングルスレッド"),
+    MultiThread("マルチスレッド"),
     ;
 
     final public static String PROPERTY_KEY = "grep_mode";

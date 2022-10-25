@@ -22,30 +22,29 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
 
     long starttime;
 
-    public ExcelGrepSearchWorker(ExcelGrepGuiMain excelGrepGuiMain, String path, String regex, JTable table) {
+    public ExcelGrepSearchWorker(ExcelGrepGuiMain excelGrepGuiMain, String path, String regex) {
         super();
         this.excelGrepGuiMain = excelGrepGuiMain;
         this.path = Paths.get(path);
         this.regex = Pattern.compile(regex);
-        this.table = table;
-        
-        this.addPropertyChangeListener(
-                new PropertyChangeListener() {
-                    public  void propertyChange(PropertyChangeEvent evt) {
-                        if ("progress".equals(evt.getPropertyName())) {
-                            excelGrepGuiMain.progressBar.setValue((Integer)evt.getNewValue());
-                        }
-                    }
-                });
+        this.table = excelGrepGuiMain.table;
+
+        this.addPropertyChangeListener(new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent evt) {
+                if ("progress".equals(evt.getPropertyName())) {
+                    excelGrepGuiMain.progressBar.setValue((Integer) evt.getNewValue());
+                }
+            }
+        });
     }
 
 
     @Override
     protected Void doInBackground() throws Exception {
         table.setEnabled(false);
-        ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
-        model.clear(path);
-        
+        ExcelGrepResultTableModel model = new ExcelGrepResultTableModel(path);
+        table.setModel(model);
+
         String text = "検索中";
         this.excelGrepGuiMain.updateStatusBar(text);
         starttime = System.currentTimeMillis();
@@ -85,7 +84,7 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
     protected void done() {
         long endtime = System.currentTimeMillis();
 
-        this.excelGrepGuiMain.updateStatusBar((endtime-starttime) + "ms");
+        this.excelGrepGuiMain.updateStatusBar((endtime - starttime) + "ms");
 
         table.setEnabled(true);
         table.invalidate();

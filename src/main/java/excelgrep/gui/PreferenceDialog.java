@@ -56,7 +56,7 @@ public class PreferenceDialog extends JDialog {
         panel.add(lblNewLabel, gbc_lblNewLabel);
         
         JComboBox<LaunchMode> launchModeComboBox = new JComboBox<LaunchMode>();
-        launchModeComboBox.addItem(LaunchMode.Default);
+        launchModeComboBox.addItem(LaunchMode.AwtDesktop);
         launchModeComboBox.addItem(LaunchMode.VBScript);
         GridBagConstraints gbc_comboBox = new GridBagConstraints();
         gbc_comboBox.insets = new Insets(0, 0, 5, 0);

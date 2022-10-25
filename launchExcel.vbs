@@ -19,13 +19,11 @@ function urldecode(Source)
             iAsc = CByte("&H" & sHex)
             If (&H00 <= iAsc And iAsc <= &H80) Or _
                (&HA0 <= iAsc And iAsc <= &HDF) Then
-                '1バイト文字
                 sChr=Chr(iAsc)
             ElseIf (&H81 <= iAsc And iAsc <= &H9F) Or _
                (&HE0 <= iAsc And iAsc <= &HFF) Then
-                '2バイト文字
                 sChr = Mid(Source,iCount,1)
-               iCount = iCount + 1
+                iCount = iCount + 1
                 If sChr="%" Then
                     sHex2 = Mid(Source,iCount,2)
                     iCount = iCount + 2
@@ -48,13 +46,10 @@ On Error Resume Next
 opentarget = (Wscript.Arguments.Item(0))
 sheetName = (Wscript.Arguments.Item(1))
 cellAddress = (Wscript.Arguments.Item(2))
-'MsgBox "フルパス: "   & opentarget &  "[" & sheetName & "]" 
 
 opentarget = urldecode(Wscript.Arguments.Item(0))
 sheetName = urldecode(Wscript.Arguments.Item(1))
 cellAddress = urldecode(Wscript.Arguments.Item(2))
-
-'MsgBox "フルパス: "   & opentarget &  "[" & sheetName & "]" 
 
 set xls = GetObject(,"Excel.Application")
 If TypeName(xls) = "Empty" Then

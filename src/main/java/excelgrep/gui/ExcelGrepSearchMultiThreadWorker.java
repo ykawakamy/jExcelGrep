@@ -13,8 +13,8 @@ import excelgrep.core.ExcelGrep;
 
 public class ExcelGrepSearchMultiThreadWorker extends ExcelGrepSearchWorker {
 
-    public ExcelGrepSearchMultiThreadWorker(ExcelGrepGuiMain excelGrepGuiMain, String path, String regex, JTable table) {
-        super(excelGrepGuiMain, path, regex, table);
+    public ExcelGrepSearchMultiThreadWorker(ExcelGrepGuiMain excelGrepGuiMain, String path, String regex) {
+        super(excelGrepGuiMain, path, regex);
     }
 
     protected void traverseExcelGrep() throws IOException {

@@ -40,6 +40,9 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import excelgrep.core.data.ExcelData;
@@ -54,13 +57,13 @@ public class ExcelGrepGuiMain {
 
     static Logger log = LogManager.getLogger(ExcelGrepGuiMain.class);
 
-    // 
+    //
     private Configuration configuration;
     private Properties prop;
-    
+
     // GUIs
     private JFrame frame;
-    private JTable table;
+    JTable table;
     private JPanel panel;
     private JPanel operationPanel;
     private JPanel panel_1;
@@ -122,10 +125,10 @@ public class ExcelGrepGuiMain {
         configurationManager.saveFile(new File(CONFIGURATION_PROPERTIES), configuration);
         this.configuration = configuration;
     }
-    
+
     public Configuration getConfigration() {
         return this.configuration;
-        
+
     }
 
     private void loadProperty() {
@@ -133,10 +136,10 @@ public class ExcelGrepGuiMain {
             prop = new Properties();
             prop.load(new FileInputStream(new File(SETTING_PROPERTIES)));
 
-            Comparator<Entry<Object, Object>> comparing = Comparator.comparing((it)->it.getKey().toString(), Comparator.naturalOrder());
+            Comparator<Entry<Object, Object>> comparing = Comparator.comparing((it) -> it.getKey().toString(), Comparator.naturalOrder());
             Set<Entry<Object, Object>> entrySet = new TreeSet<>(comparing);
             entrySet.addAll(prop.entrySet());
-            
+
             for (Entry<Object, Object> p : entrySet) {
                 String key = p.getKey().toString();
                 if (key.startsWith(SETTING_PREFIX_FOLDER)) {
@@ -147,7 +150,6 @@ public class ExcelGrepGuiMain {
             }
         } catch (Exception e) {
             log.warn("failed to load properties.", e);
-            throw new RuntimeException(e);
         }
     }
 
@@ -163,7 +165,6 @@ public class ExcelGrepGuiMain {
             prop.store(new FileOutputStream(SETTING_PROPERTIES), "");
         } catch (IOException e) {
             log.warn("failed to save properties.", e);
-            throw new RuntimeException(e);
         }
     }
 
@@ -172,21 +173,22 @@ public class ExcelGrepGuiMain {
      */
     private void initialize() {
         frame = new JFrame();
-        frame.setBounds(100, 100, 450, 300);
+        frame.setBounds(100, 100, 840, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        ExcelGrepResultTableModel dataModel = new ExcelGrepResultTableModel(new String[] {"\u30D1\u30B9", "\u30B7\u30FC\u30C8", "\u5834\u6240", "\u30C6\u30AD\u30B9\u30C8"});
+        ExcelGrepResultTableModel dataModel = new ExcelGrepResultTableModel();
+        TableColumnModel tableColumn = new DefaultTableColumnModel();
+        tableColumn.addColumn(createColumn(0, "パス", 237));
+        tableColumn.addColumn(createColumn(1, "ファイル名", 100));
+        tableColumn.addColumn(createColumn(2, "シート名", 100));
+        tableColumn.addColumn(createColumn(3, "場所", 49));
+        tableColumn.addColumn(createColumn(4, "テキスト", 253));
 
-        table = new JTable();
+        table = new JTable(dataModel, tableColumn);
         table.setEnabled(false);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.setFillsViewportHeight(true);
         table.setAutoCreateRowSorter(true);
-        table.setModel(dataModel);
-        table.getColumnModel().getColumn(0).setPreferredWidth(237);
-        table.getColumnModel().getColumn(1).setPreferredWidth(38);
-        table.getColumnModel().getColumn(2).setPreferredWidth(49);
-        table.getColumnModel().getColumn(3).setPreferredWidth(253);
         JScrollPane mainPanel = new JScrollPane(table);
 
         frame.getContentPane().add(mainPanel, BorderLayout.CENTER);
@@ -286,13 +288,13 @@ public class ExcelGrepGuiMain {
         gbc_progressBar_1.gridx = 2;
         gbc_progressBar_1.gridy = 0;
         panel_2.add(progressBar_1, gbc_progressBar_1);
-        
+
         menuBar = new JMenuBar();
         frame.setJMenuBar(menuBar);
-        
+
         menuCategoryFile = new JMenu("ファイル");
         menuBar.add(menuCategoryFile);
-        
+
         menuSettings = new JMenuItem("設定");
         menuSettings.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -305,6 +307,12 @@ public class ExcelGrepGuiMain {
         registerEventHandlers();
     }
 
+    protected TableColumn createColumn(int rowId, String header, int width) {
+        TableColumn tableColumn = new TableColumn(rowId, width);
+        tableColumn.setHeaderValue(header);
+        return tableColumn;
+    }
+
     private void registerEventHandlers() {
         selectFolderButton.addActionListener(this::onClick_selectFolderButton);
         searchButton.addActionListener(this::onClick_searchButton);
@@ -313,8 +321,6 @@ public class ExcelGrepGuiMain {
             public void mouseClicked(MouseEvent e) {
                 launchExcel(e);
             }
-
-
         });
 
     }
@@ -332,8 +338,8 @@ public class ExcelGrepGuiMain {
 
         ExcelData row = model.getRow(idx);
 
-        switch( configuration.getLaunchMode() ) {
-            case Default:
+        switch (configuration.getLaunchMode()) {
+            case AwtDesktop:
                 launchExcelUsingDesktop(row);
                 break;
             case VBScript:
@@ -347,20 +353,21 @@ public class ExcelGrepGuiMain {
             Path filepath = (Path) row.getPosition().getFilePath();
             String sheet = (String) row.getPosition().getSheetName();
             String cell = (String) row.getPosition().getCellPosition();
-            
-            // wscriptへ引数を渡す際、      でエスケープの問題を回避。
-            // 
+
+            // wscriptへ引数を渡す際、エスケープの問題を回避。
+            //
             String encodedFilepath = encode(filepath.toString());
-            String encodedSheet =  encode(sheet.toString());
-            String encodedCell =  encode(cell.toString());
-            ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedFilepath, encodedSheet, encodedCell );
+            String encodedSheet = encode(sheet.toString());
+            String encodedCell = encode(cell.toString());
+            ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedFilepath, encodedSheet, encodedCell);
             builder.start();
-         }catch (Exception e) {
-             throw new RuntimeException(e);
-         }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
     private String encode(String value) throws Exception {
-        return URLEncoder.encode(value,  "MS932");
+        return URLEncoder.encode(value, "MS932");
     }
 
     private void launchExcelUsingDesktop(ExcelData row) {
@@ -370,7 +377,7 @@ public class ExcelGrepGuiMain {
         try {
             Path filepath = (Path) row.getPosition().getFilePath();
             String sheet = (String) row.getPosition().getSheetName();
-            
+
             Desktop.getDesktop().open(filepath.toFile());
         } catch (IOException ex) {
             log.error("failed to launch", ex);
@@ -405,21 +412,21 @@ public class ExcelGrepGuiMain {
         if (regex == null) {
             return;
         }
-        
+
         searchFolder.removeItem(targetFolderPath);
         searchKeyword.removeItem(regex);
-        
-        searchFolder.insertItemAt(targetFolderPath , 0 );
+
+        searchFolder.insertItemAt(targetFolderPath, 0);
         searchKeyword.insertItemAt(regex, 0);
 
         searchFolder.setSelectedItem(targetFolderPath);
         searchKeyword.setSelectedItem(regex);
-        
+
         saveProperties();
 
         // searchWorker = new ExcelGrepSearchWorker(this, targetFolderPath, regex, table);
-        searchWorker = new ExcelGrepSearchMultiThreadWorker(this, targetFolderPath, regex, table);
-        
+        searchWorker = new ExcelGrepSearchMultiThreadWorker(this, targetFolderPath, regex);
+
         searchWorker.execute();
 
     }
