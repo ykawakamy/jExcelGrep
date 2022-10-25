@@ -19,7 +19,8 @@ public class ExcelPosition {
     public enum ExcelPositionType{
         Cell("cell"),
         Shape("[Shape]"),
-        LoadFailure("[LoadFailure]"),
+        LoadFailure("[読込失敗]"),
+        FileNameMatch("[ファイル名一致]"),
         ;
 
         String typeName;

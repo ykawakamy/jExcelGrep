@@ -52,6 +52,10 @@ public class ExcelGrep {
             return;
         }
         
+        if(regex.matcher(filename).find()) {
+            getResultSet().add(ExcelData.newFileNameMatch(file));
+        }
+        
         if (filename.endsWith(".xls")) {
             grepHSSF(file, regex);
         } else if (filename.endsWith(".xlsx") || filename.endsWith(".xlsm")) {
@@ -100,6 +104,7 @@ public class ExcelGrep {
 
             getResultSet().addAll(listener.result);
         } catch (IOException e) {
+            getResultSet().add(ExcelData.newLoadFailure(file, e));
             log.error("unexpected exception." , e);
         }
     }
