@@ -16,4 +16,9 @@ public enum LaunchMode {
         return VBScript;
     }
     
+    @Override
+    public String toString() {
+        return label;
+    }
+
 }

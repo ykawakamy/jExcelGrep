@@ -12,9 +12,18 @@ import java.util.Map.Entry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * コンフィグのファイル書き出し/読み込みを行う。
+ */
 public class ConfigurationManager {
     static Logger log = LogManager.getLogger(ConfigurationManager.class);
     
+    /**
+     * 指定したファイルパスからコンフィグを読み込む
+     * <p>読み込みに失敗した場合、デフォルトを返す。</p>
+     * @param filepath ファイルパス
+     * @return 読み込みしたコンフィグ
+     */
     public Configuration loadFile(File filepath) {
         Configuration configuration = new Configuration();
         
@@ -48,13 +57,18 @@ public class ConfigurationManager {
         
     }
 
+    /**
+     * 指定したファイルパスにコンフィグを書き出す。
+     * @param filepath 書き出し先のファイルパス
+     * @param configuration 書き出すコンフィグ
+     */
     public void saveFile(File filepath, Configuration configuration) {
         
         try {
             Properties prop = new Properties();
 
-            prop.put(LaunchMode.PROPERTY_KEY,configuration.getLaunchMode().toString());
-            prop.put(GrepMode.PROPERTY_KEY,configuration.getGrepMode().toString());
+            prop.put(LaunchMode.PROPERTY_KEY,configuration.getLaunchMode().name());
+            prop.put(GrepMode.PROPERTY_KEY,configuration.getGrepMode().name());
             
             prop.store(new FileOutputStream(filepath), "");
         } catch (Exception e) {

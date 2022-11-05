@@ -4,6 +4,11 @@ import java.nio.file.Path;
 import java.util.Objects;
 import excelgrep.core.data.ExcelPosition.ExcelPositionType;
 
+
+/**
+ * 検索結果
+ * <p></p>
+ */
 public class ExcelData {
     ExcelPosition position = new ExcelPosition();
     ExcelValue value = new ExcelValue();

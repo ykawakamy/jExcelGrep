@@ -52,7 +52,7 @@ public class ExcelGrepGuiMain {
 
     private static final String SETTING_PREFIX_FOLDER = "folder";
 
-    private static final String SETTING_PROPERTIES = "excelgrep.properties";
+    private static final String HISTORY_PROPERTIES = "excelgrep.properties";
     private static final String CONFIGURATION_PROPERTIES = "config.properties";
 
     static Logger log = LogManager.getLogger(ExcelGrepGuiMain.class);
@@ -83,6 +83,8 @@ public class ExcelGrepGuiMain {
     private JMenu menuCategoryFile;
     private JMenuItem menuSettings;
 
+    ConfigurationManager configurationManager = new ConfigurationManager();
+    
     /**
      * Launch the application.
      * 
@@ -116,12 +118,10 @@ public class ExcelGrepGuiMain {
     }
 
     private void loadConfiguration() {
-        ConfigurationManager configurationManager = new ConfigurationManager();
         this.configuration = configurationManager.loadFile(new File(CONFIGURATION_PROPERTIES));
     }
 
     public void setConfiguration(Configuration configuration) {
-        ConfigurationManager configurationManager = new ConfigurationManager();
         configurationManager.saveFile(new File(CONFIGURATION_PROPERTIES), configuration);
         this.configuration = configuration;
     }
@@ -134,7 +134,7 @@ public class ExcelGrepGuiMain {
     private void loadProperty() {
         try {
             prop = new Properties();
-            prop.load(new FileInputStream(new File(SETTING_PROPERTIES)));
+            prop.load(new FileInputStream(new File(HISTORY_PROPERTIES)));
 
             Comparator<Entry<Object, Object>> comparing = Comparator.comparing((it) -> it.getKey().toString(), Comparator.naturalOrder());
             Set<Entry<Object, Object>> entrySet = new TreeSet<>(comparing);
@@ -162,7 +162,7 @@ public class ExcelGrepGuiMain {
             for (int i = 0; i < searchKeyword.getItemCount(); i++) {
                 prop.setProperty(SETTING_PREFIX_KEYWORD + i, searchKeyword.getItemAt(i));
             }
-            prop.store(new FileOutputStream(SETTING_PROPERTIES), "");
+            prop.store(new FileOutputStream(HISTORY_PROPERTIES), "");
         } catch (IOException e) {
             log.warn("failed to save properties.", e);
         }
@@ -189,6 +189,7 @@ public class ExcelGrepGuiMain {
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.setFillsViewportHeight(true);
         table.setAutoCreateRowSorter(true);
+        table.setCellSelectionEnabled(true);
         JScrollPane mainPanel = new JScrollPane(table);
 
         frame.getContentPane().add(mainPanel, BorderLayout.CENTER);
@@ -307,12 +308,22 @@ public class ExcelGrepGuiMain {
         registerEventHandlers();
     }
 
-    protected TableColumn createColumn(int rowId, String header, int width) {
+    /**
+     * JTableのカラム定義用のヘルパ
+     * @param rowId
+     * @param header
+     * @param width
+     * @return
+     */
+    private TableColumn createColumn(int rowId, String header, int width) {
         TableColumn tableColumn = new TableColumn(rowId, width);
         tableColumn.setHeaderValue(header);
         return tableColumn;
     }
 
+    /**
+     * イベントハンドラの登録
+     */
     private void registerEventHandlers() {
         selectFolderButton.addActionListener(this::onClick_selectFolderButton);
         searchButton.addActionListener(this::onClick_searchButton);
@@ -325,14 +336,21 @@ public class ExcelGrepGuiMain {
 
     }
 
+    /**
+     * イベントに応じてExcelを起動する。
+     * @param e
+     */
     private void launchExcel(MouseEvent e) {
+        // ダブルクリックでない場合、抜ける。
         if (e.getClickCount() != 2) {
             return;
         }
         int idx = table.getSelectedRow();
+        // 検索結果が未選択時、抜ける。
         if (idx == -1) {
             return;
         }
+        
         idx = table.convertRowIndexToModel(idx);
         ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
 
@@ -348,28 +366,47 @@ public class ExcelGrepGuiMain {
         }
     }
 
+    /**
+     * VBSでExcelを起動する。
+     * <p>OLEオートメーションにより、検索結果のシート、セルにアクセスさせる。</p>
+     * @param row 起動対象となる検索結果
+     */
     private void launchExcelUsingVbs(ExcelData row) {
         try {
             Path filepath = (Path) row.getPosition().getFilePath();
+            Path dir = filepath.getParent();
+            String filename = filepath.getFileName().toString();
             String sheet = (String) row.getPosition().getSheetName();
             String cell = (String) row.getPosition().getCellPosition();
 
             // wscriptへ引数を渡す際、エスケープの問題を回避。
-            //
-            String encodedFilepath = encode(filepath.toString());
-            String encodedSheet = encode(sheet.toString());
-            String encodedCell = encode(cell.toString());
-            ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedFilepath, encodedSheet, encodedCell);
+            String encodedDir = escape(dir.toString());
+            String encodedFilepath = escape(filename.toString());
+            String encodedSheet = escape(sheet.toString());
+            String encodedCell = escape(cell.toString());
+            ProcessBuilder builder = new ProcessBuilder("wscript", "launchExcel.vbs", encodedDir, encodedFilepath, encodedSheet, encodedCell);
             builder.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private String encode(String value) throws Exception {
-        return URLEncoder.encode(value, "MS932");
+    /**
+     * ProcessBuilderにパラメータを渡すためのエスケープ
+     * @param value
+     * @return
+     * @throws Exception
+     */
+    private String escape(String value) throws Exception {
+//        String enc = "MS932";
+        String enc = "utf8";
+        return "\""+URLEncoder.encode(value, enc)+ "\"";
     }
 
+    /**
+     * AWT DesktopでExcelを起動する。
+     * @param row 起動対象となる検索結果
+     */
     private void launchExcelUsingDesktop(ExcelData row) {
         if (!Desktop.isDesktopSupported()) {
             return;
@@ -384,6 +421,10 @@ public class ExcelGrepGuiMain {
         }
     }
 
+    /**
+     * 検索フォルダ選択ボタンのクリック
+     * @param e
+     */
     void onClick_selectFolderButton(ActionEvent e) {
         String oldFolderPath = (String) searchFolder.getSelectedItem();
 
@@ -401,6 +442,10 @@ public class ExcelGrepGuiMain {
         }
     }
 
+    /**
+     * 検索ボタンのクリック
+     * @param e
+     */
     void onClick_searchButton(ActionEvent e) {
         String targetFolderPath = (String) searchFolder.getSelectedItem();
         String regex = (String) searchKeyword.getSelectedItem();
@@ -424,14 +469,24 @@ public class ExcelGrepGuiMain {
 
         saveProperties();
 
-        // searchWorker = new ExcelGrepSearchWorker(this, targetFolderPath, regex, table);
-        searchWorker = new ExcelGrepSearchMultiThreadWorker(this, targetFolderPath, regex);
+        switch( configuration.getGrepMode() ) {
+            case SingleThread:
+                searchWorker = new ExcelGrepSearchWorker(this, targetFolderPath, regex);
+                break;
+            case MultiThread:
+                searchWorker = new ExcelGrepSearchMultiThreadWorker(this, targetFolderPath, regex);
+                break;
+        }
 
         searchWorker.execute();
 
     }
 
 
+    /**
+     * ステータスバーのテキストを更新する。
+     * @param text
+     */
     public void updateStatusBar(String text) {
         statusBar.setText(text);
     }

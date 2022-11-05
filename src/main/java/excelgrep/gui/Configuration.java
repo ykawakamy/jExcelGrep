@@ -1,9 +1,14 @@
 package excelgrep.gui;
 
+/**
+ * コンフィグ
+ */
 public class Configuration {
-    private LaunchMode launchMode = LaunchMode.getDefault();
-    private GrepMode grepMode = GrepMode.getDefault();
     
+    /** 起動方式 */
+    private LaunchMode launchMode = LaunchMode.getDefault();
+    /** Grep方式 */
+    private GrepMode grepMode = GrepMode.getDefault();
     
     public LaunchMode getLaunchMode() {
         return launchMode;

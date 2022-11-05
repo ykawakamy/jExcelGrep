@@ -13,7 +13,12 @@ public enum GrepMode {
     }
     
     public static GrepMode getDefault() {
-        return SingleThread;
+        return MultiThread;
+    }
+    
+    @Override
+    public String toString() {
+        return label;
     }
     
 }

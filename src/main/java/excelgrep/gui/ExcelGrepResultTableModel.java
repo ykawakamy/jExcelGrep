@@ -7,11 +7,16 @@ import javax.swing.table.AbstractTableModel;
 import excelgrep.core.data.ExcelData;
 import excelgrep.core.data.ExcelGrepResult;
 
+/**
+ * 検索結果をJTableへ表示するためのモデル
+ */
 @SuppressWarnings("serial")
 public class ExcelGrepResultTableModel extends AbstractTableModel {
-    protected Path basePath;
+    /** 検索したパス */
+    private Path basePath;
     
-    ExcelGrepResult result = new ExcelGrepResult();
+    /** 検索結果 */
+    private ExcelGrepResult result = new ExcelGrepResult();
 
     public ExcelGrepResultTableModel(Path path) {
         basePath = path;

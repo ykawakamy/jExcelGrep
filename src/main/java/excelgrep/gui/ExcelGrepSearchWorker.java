@@ -21,6 +21,7 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
     final JTable table;
 
     long starttime;
+    ExcelGrepResultTableModel model;
 
     public ExcelGrepSearchWorker(ExcelGrepGuiMain excelGrepGuiMain, String path, String regex) {
         super();
@@ -28,6 +29,7 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
         this.path = Paths.get(path);
         this.regex = Pattern.compile(regex);
         this.table = excelGrepGuiMain.table;
+        this.model = new ExcelGrepResultTableModel(this.path);
 
         this.addPropertyChangeListener(new PropertyChangeListener() {
             public void propertyChange(PropertyChangeEvent evt) {
@@ -42,14 +44,14 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
     @Override
     protected Void doInBackground() throws Exception {
         table.setEnabled(false);
-        ExcelGrepResultTableModel model = new ExcelGrepResultTableModel(path);
-        table.setModel(model);
 
         String text = "検索中";
         this.excelGrepGuiMain.updateStatusBar(text);
         starttime = System.currentTimeMillis();
 
         traverseExcelGrep();
+
+        table.setModel(model);
 
         return null;
     }
@@ -70,7 +72,6 @@ class ExcelGrepSearchWorker extends SwingWorker<Void, ExcelGrepResult> {
 
     @Override
     protected void process(List<ExcelGrepResult> chunks) {
-        ExcelGrepResultTableModel model = (ExcelGrepResultTableModel) table.getModel();
         for (ExcelGrepResult it : chunks) {
             for (ExcelData data : it.getResult()) {
                 model.addRow(data);

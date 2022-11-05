@@ -40,7 +40,7 @@ public class PreferenceDialog extends JDialog {
         contentPane.add(tabbedPane, BorderLayout.CENTER);
         
         JPanel panel = new JPanel();
-        tabbedPane.addTab("New tab", null, panel, null);
+        tabbedPane.addTab("基本", null, panel, null);
         GridBagLayout gbl_panel = new GridBagLayout();
         gbl_panel.columnWidths = new int[]{0, 0, 0};
         gbl_panel.rowHeights = new int[]{0, 0, 0};
