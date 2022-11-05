@@ -18,6 +18,10 @@ import java.awt.FlowLayout;
 public class PreferenceDialog extends JDialog {
 
     ExcelGrepGuiMain guiMain;
+    private JComboBox<LaunchMode> launchModeComboBox;
+    private JComboBox<GrepMode> grepModeComboBox;
+    private JButton okButton;
+    private JButton cancelButton;
 
     /**
      * Create the frame.
@@ -55,39 +59,62 @@ public class PreferenceDialog extends JDialog {
         gbc_lblNewLabel.gridy = 0;
         panel.add(lblNewLabel, gbc_lblNewLabel);
         
-        JComboBox<LaunchMode> launchModeComboBox = new JComboBox<LaunchMode>();
+        launchModeComboBox = new JComboBox<LaunchMode>();
         launchModeComboBox.addItem(LaunchMode.AwtDesktop);
         launchModeComboBox.addItem(LaunchMode.VBScript);
-        GridBagConstraints gbc_comboBox = new GridBagConstraints();
-        gbc_comboBox.insets = new Insets(0, 0, 5, 0);
-        gbc_comboBox.fill = GridBagConstraints.HORIZONTAL;
-        gbc_comboBox.gridx = 1;
-        gbc_comboBox.gridy = 0;
-        panel.add(launchModeComboBox, gbc_comboBox);
+        GridBagConstraints gbc_launchModeComboBox = new GridBagConstraints();
+        gbc_launchModeComboBox.insets = new Insets(0, 0, 5, 0);
+        gbc_launchModeComboBox.fill = GridBagConstraints.HORIZONTAL;
+        gbc_launchModeComboBox.gridx = 1;
+        gbc_launchModeComboBox.gridy = 0;
+        panel.add(launchModeComboBox, gbc_launchModeComboBox);
         
         JPanel panel_1 = new JPanel();
         FlowLayout flowLayout = (FlowLayout) panel_1.getLayout();
         flowLayout.setAlignment(FlowLayout.TRAILING);
         contentPane.add(panel_1, BorderLayout.SOUTH);
         
-        JButton okButton = new JButton("OK");
+        JLabel lblKennsa = new JLabel("検索方法");
+        GridBagConstraints gbc_lblKennsa = new GridBagConstraints();
+        gbc_lblKennsa.anchor = GridBagConstraints.EAST;
+        gbc_lblKennsa.insets = new Insets(0, 0, 0, 5);
+        gbc_lblKennsa.gridx = 0;
+        gbc_lblKennsa.gridy = 1;
+        panel.add(lblKennsa, gbc_lblKennsa);
+        
+        grepModeComboBox = new JComboBox<GrepMode>();
+        grepModeComboBox.addItem(GrepMode.MultiThread);
+        grepModeComboBox.addItem(GrepMode.SingleThread);
+
+        GridBagConstraints gbc_grepModeComboBox = new GridBagConstraints();
+        gbc_grepModeComboBox.fill = GridBagConstraints.HORIZONTAL;
+        gbc_grepModeComboBox.gridx = 1;
+        gbc_grepModeComboBox.gridy = 1;
+        panel.add(grepModeComboBox, gbc_grepModeComboBox);
+
+        launchModeComboBox.setSelectedItem(configration.getLaunchMode());
+        grepModeComboBox.setSelectedItem(configration.getGrepMode());
+        
+        okButton = new JButton("OK");
         panel_1.add(okButton);
         okButton.addActionListener( (e)->{
-            
-            Configuration configuration = new Configuration();
-            configuration.setLaunchMode((LaunchMode) launchModeComboBox.getSelectedItem());
-            guiMain.setConfiguration(configuration);
-            PreferenceDialog.this.setVisible(false);
+            onClick_okButton(guiMain);
         });
-
         
-        JButton cancelButton = new JButton("キャンセル");
+        cancelButton = new JButton("キャンセル");
         panel_1.add(cancelButton);
         cancelButton.addActionListener( (e)->{
             PreferenceDialog.this.setVisible(false);
         });
         
-        launchModeComboBox.setSelectedItem(configration.getLaunchMode());
+    }
+
+    protected void onClick_okButton(ExcelGrepGuiMain guiMain) {
+        Configuration configuration = new Configuration();
+        configuration.setLaunchMode((LaunchMode) launchModeComboBox.getSelectedItem());
+        configuration.setGrepMode((GrepMode) grepModeComboBox.getSelectedItem());
+        guiMain.setConfiguration(configuration);
+        PreferenceDialog.this.setVisible(false);
     }
 
 }
